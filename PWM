@@ -1,0 +1,77 @@
+int outputPin = 11; //OUTPUT PIN MACRO  
+int dutyCycle = 5;  //DUTY CYCLE MACRO    
+int frequency = 500;//FREQUENCY   
+
+
+unsigned long periodMicros;
+unsigned long onTimeMicros;
+unsigned long lastToggleTime = 0;
+bool outputState = false;
+
+void setup() 
+{
+  pinMode(outputPin, OUTPUT);
+  Serial.begin(9600);
+  Serial.println("PWM Controller");
+  periodMicros = 1000000UL / frequency;
+  onTimeMicros = (periodMicros * dutyCycle) / 100; //CONVERSION OF FREQUENCY TO TIME PERIOD
+}
+
+void loop() 
+{
+  
+  if (Serial.available() > 0) 
+  {
+    char cmd = Serial.read();
+
+    if (cmd == '1') {
+      dutyCycle = dutyCycle + 5;
+      if (dutyCycle > 100) dutyCycle = 100; //DUTY CYCLE INCREMENTING LOGIC PRESS '1' IN THE SERIAL MONITOR TO INCREMENT BY 5%
+      Serial.print("Duty cycle: ");
+      Serial.print(dutyCycle);
+      Serial.println("%");
+    }
+    else if (cmd == '0') {
+      dutyCycle = dutyCycle - 5;           
+      if (dutyCycle < 0) dutyCycle = 0;   //DUTY CYCLE INCREMENTING LOGIC PRESS '1' IN THE SERIAL MONITOR TO DECREASE BY 5%
+      Serial.print("Duty cycle: ");
+      Serial.print(dutyCycle);
+      Serial.println("%");
+    }
+
+    periodMicros = 1000000UL / frequency;
+    onTimeMicros = (periodMicros * dutyCycle) / 100;
+  }
+
+  
+  unsigned long now = micros();
+
+  // Handle special cases quickly
+  if (dutyCycle == 0) {
+    digitalWrite(outputPin, LOW);     //HANDLES THE EDGE CASES SUCH AS : DECREASING THE DUTYCYCLE BEYOND 5%
+    return;
+  }
+  if (dutyCycle == 100) {
+    digitalWrite(outputPin, HIGH);
+    return;
+  }
+
+  unsigned long elapsed = now - lastToggleTime;
+
+  if (outputState) {
+   
+    if (elapsed >= onTimeMicros) {
+      digitalWrite(outputPin, LOW);
+      outputState = false;
+      lastToggleTime = now;
+    }
+  } 
+  else {
+   
+    if (elapsed >= (periodMicros - onTimeMicros)) {
+      digitalWrite(outputPin, HIGH);
+      outputState = true;
+      lastToggleTime = now;
+    }
+  }
+}
